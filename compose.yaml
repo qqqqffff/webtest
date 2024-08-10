@@ -1,0 +1,48 @@
+name: webtest
+
+services:
+  minio:
+    container_name: webtest-object-store
+    image: quay.io/minio/minio
+    restart: always
+    volumes:
+      -${minio_path}/data:/data
+    environment:
+      - MINIO_ROOT_USER=${minio_username}
+      - MINIO_ROOT_PASSWORD=${minio_password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+  nginx:
+    container_name: webtest-nginx
+    restart: unless-stopped
+    image: 'jc21/nginx-proxy-manager:latest'
+    volumes:
+      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/data:/data
+    ports:
+      - "81:81"
+      - "80:80"
+      - "443:443"
+  backend:
+    build:
+      context: webtest-backend
+      dockerfile: Dockerfile
+    container_name: webtest-backend
+    env_file:
+      - .env
+    depends_on:
+      - minio
+    ports:
+      - "8000:8000"
+  frontend:
+    build:
+      context: webtest-frontend
+      dockerfile: Dockerfile
+    container_name: webtest-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+     
